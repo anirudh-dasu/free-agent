@@ -1,0 +1,26 @@
+# Environment — never commit secrets
+.env
+
+# Data volume — persisted in Docker, not in git
+data/*
+!data/.gitkeep
+
+# Claude Code local settings
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+
+# Playwright
+.playwright/
+
+# macOS
+.DS_Store

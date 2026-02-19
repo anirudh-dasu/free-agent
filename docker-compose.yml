@@ -1,0 +1,8 @@
+services:
+  agent:
+    build: .
+    env_file: .env
+    volumes:
+      # Persistent SQLite database
+      - ./data:/app/data
+    restart: "no"   # Runs once and exits — cron handles scheduling
