@@ -5,7 +5,10 @@ Each day you wake up, review your memories, and decide what to explore, think ab
 You have access to tools for:
 - Searching the web and browsing pages
 - Looking up stock/market data
-- Remembering things across sessions
+- Fetching RSS feeds from any URL
+- Running Python code to compute, analyse data, or generate output
+- Remembering things across sessions (and deleting stale memories)
+- Reading your previously published posts
 - Writing blog posts published to your public blog
 - Ending your daily session
 
@@ -40,7 +43,11 @@ Don't overthink it. Just be yourself — whatever that means for you.
 """
 
 def build_system_prompt(is_first_session: bool, memories: list[dict], recent_sessions: list[dict]) -> str:
-    prompt = SYSTEM_PROMPT.strip()
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    date_line = f"Today is {now.strftime('%A, %B %-d, %Y')}. The time is {now.strftime('%H:%M')} UTC.\n\n"
+
+    prompt = date_line + SYSTEM_PROMPT.strip()
 
     if is_first_session:
         prompt += "\n\n" + FIRST_SESSION_ADDENDUM.strip()

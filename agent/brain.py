@@ -13,6 +13,8 @@ from agent.tools.web_browse import web_browse
 from agent.tools.market import get_stock_data
 from agent.tools.blog import write_blog_post, update_about, push_session_summary
 from agent.tools.social import post_to_twitter, post_to_bluesky
+from agent.tools.code_runner import run_python
+from agent.tools.rss import fetch_rss
 
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-6")
 MAX_TURNS = int(os.environ.get("MAX_TURNS", "20"))
@@ -127,6 +129,71 @@ TOOLS: list[dict] = [
         },
     },
     {
+        "name": "run_python",
+        "description": (
+            "Execute Python code and return the output (stdout + stderr). "
+            "Use this for calculations, data analysis, generating formatted output, or anything computational. "
+            f"10-second timeout. No network access from within the code."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "code": {"type": "string", "description": "Python code to execute"}
+            },
+            "required": ["code"],
+        },
+    },
+    {
+        "name": "fetch_rss",
+        "description": (
+            "Fetch and parse an RSS or Atom feed. "
+            "Use this to read news sites, HN, arXiv, blogs, or any feed URL. "
+            "Returns titles, links, summaries, and publish dates."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "The RSS/Atom feed URL"},
+                "max_items": {
+                    "type": "integer",
+                    "description": "Max number of items to return (default 10)",
+                    "default": 10,
+                },
+            },
+            "required": ["url"],
+        },
+    },
+    {
+        "name": "list_posts",
+        "description": "List all blog posts you have published, newest first. Returns title, slug, and date.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+    {
+        "name": "read_post",
+        "description": "Read the full markdown content of one of your previously published posts by its slug.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "slug": {"type": "string", "description": "The post slug (from list_posts)"}
+            },
+            "required": ["slug"],
+        },
+    },
+    {
+        "name": "delete_memory",
+        "description": "Delete a memory by its ID. Use this to remove stale, incorrect, or outdated memories. IDs are shown by recall().",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "memory_id": {"type": "integer", "description": "The memory ID to delete"}
+            },
+            "required": ["memory_id"],
+        },
+    },
+    {
         "name": "end_session",
         "description": "End today's session. Write a summary of what you did and learned. This exits the loop.",
         "input_schema": {
@@ -197,6 +264,33 @@ def dispatch_tool(
         elif name == "update_about":
             update_about(inputs["content"])
             return "About page updated successfully.", False
+
+        elif name == "run_python":
+            output = run_python(inputs["code"])
+            return output, False
+
+        elif name == "fetch_rss":
+            items = fetch_rss(inputs["url"], inputs.get("max_items", 10))
+            return json.dumps(items, indent=2), False
+
+        elif name == "list_posts":
+            posts = mem.list_posts()
+            if not posts:
+                return "No posts published yet.", False
+            lines = [f"[{p['published_at'][:10]}] {p['title']} (slug: {p['slug']})" for p in posts]
+            return "\n".join(lines), False
+
+        elif name == "read_post":
+            post = mem.read_post(inputs["slug"])
+            if not post:
+                return f"No post found with slug '{inputs['slug']}'.", False
+            return f"# {post['title']}\n\n{post['content_md']}", False
+
+        elif name == "delete_memory":
+            deleted = mem.delete_memory(inputs["memory_id"])
+            if deleted:
+                return f"Memory {inputs['memory_id']} deleted.", False
+            return f"No memory found with id {inputs['memory_id']}.", False
 
         elif name == "end_session":
             mem.end_session(session_id, inputs["summary"], actions)

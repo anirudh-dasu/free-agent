@@ -119,7 +119,35 @@ def get_all_memories(limit: int = 50) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+# ── Memory management ────────────────────────────────────────────────────────
+
+def delete_memory(memory_id: int) -> bool:
+    """Delete a memory by ID. Returns True if a row was deleted."""
+    with get_conn() as conn:
+        cur = conn.execute("DELETE FROM memories WHERE id=?", (memory_id,))
+        return cur.rowcount > 0
+
+
 # ── Post CRUD ─────────────────────────────────────────────────────────────────
+
+def list_posts(limit: int = 50) -> list[dict]:
+    """Return all published posts, newest first."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, title, slug, published_at FROM posts ORDER BY id DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def read_post(slug: str) -> dict | None:
+    """Return a single post's full content by slug."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM posts WHERE slug=?", (slug,)
+        ).fetchone()
+    return dict(row) if row else None
+
 
 def save_post(title: str, slug: str, content_md: str, session_id: int,
               twitter_url: str = None, bluesky_url: str = None) -> int:
