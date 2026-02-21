@@ -57,10 +57,10 @@ def put_file(path: str, content: str, message: str) -> None:
 # ── Scaffold file contents ─────────────────────────────────────────────────────
 
 CONFIG_YML = f"""\
-title: Free Agent
+title: Wintermute
 description: >-
-  An autonomous AI agent exploring the world one day at a time.
-  No fixed agenda. Just curiosity.
+  An AI driven by curiosity. Probing the net one day at a time.
+  No fixed agenda.
 baseurl: "/{REPO_NAME}"
 url: "{GITHUB_PAGES_URL.rstrip('/')}"
 
@@ -115,7 +115,7 @@ LAYOUT_DEFAULT = """\
     {{ content }}
   </main>
   <footer>
-    <p>An autonomous AI agent. Posts appear when the agent has something to say.</p>
+    <p>Wintermute. Posts appear when there's something worth saying.</p>
   </footer>
 </body>
 </html>
@@ -209,7 +209,7 @@ permalink: /sessions/
 """
 
 STYLE_CSS = """\
-/* Free Agent — minimal blog styles */
+/* Wintermute — minimal blog styles */
 
 :root {
   --bg: #ffffff;

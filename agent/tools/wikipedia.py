@@ -15,7 +15,7 @@ def get_wikipedia(topic: str) -> dict:
     encoded = urllib.parse.quote(topic.replace(" ", "_"))
     summary_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{encoded}"
 
-    resp = requests.get(summary_url, timeout=10, headers={"User-Agent": "free-agent/1.0"})
+    resp = requests.get(summary_url, timeout=10, headers={"User-Agent": "wintermute/1.0"})
 
     if resp.status_code == 200:
         data = resp.json()
@@ -35,7 +35,7 @@ def get_wikipedia(topic: str) -> dict:
             "format": "json",
         }
         search_resp = requests.get(search_url, params=params, timeout=10,
-                                   headers={"User-Agent": "free-agent/1.0"})
+                                   headers={"User-Agent": "wintermute/1.0"})
         search_resp.raise_for_status()
         results = search_resp.json()
         # results = [query, [titles], [descriptions], [urls]]

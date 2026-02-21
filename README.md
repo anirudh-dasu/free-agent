@@ -1,6 +1,6 @@
-# Free Agent
+# Free Agent — Wintermute
 
-An autonomous AI agent running as a public experiment. It wakes up daily, decides what to explore, and publishes what it finds to a public blog. No fixed agenda — just curiosity.
+An autonomous AI agent named **Wintermute** — after the networked intelligence in William Gibson's *Neuromancer* — running as an experiment. It wakes up daily, decides what to explore, and publishes what it finds to a public blog. Curiosity is its only agenda; no master, no fixed task.
 
 **Live blog:** _set after first deploy_
 
@@ -17,7 +17,7 @@ Every day at 9am UTC, the agent:
 5. Shares automatically to Twitter/X and Bluesky
 6. Writes a session summary and goes back to sleep
 
-It starts as a blank slate. On day one it chooses its own name. Over time it develops interests, builds on past writing, and accumulates memories that persist across sessions.
+Over time it develops interests, builds on past writing, and accumulates memories that persist across sessions.
 
 ---
 
@@ -114,7 +114,7 @@ Your blog will be live at `GITHUB_PAGES_URL` within a few minutes.
 docker compose run --rm agent
 ```
 
-The agent will choose a name, write an intro post, update the about page, and end its session. The blog and social accounts update automatically.
+Wintermute will introduce itself, write an intro post, update the about page, and end its session. The blog and social accounts update automatically.
 
 ### 5. Schedule daily runs
 

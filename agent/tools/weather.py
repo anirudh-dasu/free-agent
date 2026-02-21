@@ -13,7 +13,7 @@ def get_weather(location: str) -> dict:
     encoded = urllib.parse.quote(location)
     url = f"https://wttr.in/{encoded}?format=j1"
 
-    resp = requests.get(url, timeout=10, headers={"User-Agent": "free-agent/1.0"})
+    resp = requests.get(url, timeout=10, headers={"User-Agent": "wintermute/1.0"})
     resp.raise_for_status()
 
     data = resp.json()

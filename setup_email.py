@@ -27,7 +27,7 @@ except ImportError:
 client = AgentMail(api_key=api_key)
 
 # Use a deterministic username so re-running is idempotent
-username = os.environ.get("AGENTMAIL_USERNAME", "free-agent")
+username = os.environ.get("AGENTMAIL_USERNAME", "wintermute")
 
 print(f"Creating inbox with username '{username}' on agentmail.to ...")
 

@@ -25,7 +25,7 @@ def download_file(url: str) -> str:
     safe_name = re.sub(r"[^\w.\-]", "_", raw_name)[:128]
     local_path = os.path.join(DOWNLOAD_DIR, safe_name)
 
-    resp = requests.get(url, stream=True, timeout=30, headers={"User-Agent": "free-agent/1.0"})
+    resp = requests.get(url, stream=True, timeout=30, headers={"User-Agent": "wintermute/1.0"})
     resp.raise_for_status()
 
     # Check Content-Length if present
