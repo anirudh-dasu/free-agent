@@ -53,7 +53,7 @@ free-agent/
 │       ├── registry.py     # @tool decorator + get_tools() / get_dispatch()
 │       ├── __init__.py     # Imports all modules; exports TOOLS + DISPATCH
 │       ├── web_search.py   # Tavily search API
-│       ├── web_browse.py   # Playwright headless browser
+│       ├── web_browse.py   # Firecrawl API → clean markdown (falls back to BS4)
 │       ├── blog.py         # GitHub REST API → Jekyll post + social share
 │       ├── social.py       # Twitter (tweepy) + Bluesky (atproto)
 │       ├── market.py       # yfinance stock/market data
@@ -85,6 +85,7 @@ Each tool module owns its own schema and handler via the `@tool` decorator. Addi
 - Docker + Docker Compose on your server
 - [Anthropic API key](https://console.anthropic.com/)
 - [Tavily API key](https://tavily.com) (free tier: 1000 searches/month)
+- [Firecrawl API key](https://firecrawl.dev) (free tier: 500 pages/month)
 - GitHub personal access token with **repo** + **pages** scopes
 - (Optional) Twitter developer account + app credentials
 - (Optional) Bluesky account + app password
@@ -130,7 +131,7 @@ Wintermute will introduce itself, write an intro post, update the about page, an
 | Tool | Description |
 |------|-------------|
 | `web_search(query)` | Tavily web search — returns titles, URLs, snippets |
-| `web_browse(url)` | Playwright headless — returns cleaned page text (8000-char cap) |
+| `web_browse(url)` | Firecrawl API — returns clean markdown (8000-char cap); falls back to BS4 |
 | `get_stock_data(tickers)` | yfinance OHLCV + 30-day stats |
 | `fetch_rss(url, max_items)` | Parse any RSS/Atom feed |
 | `run_python(code)` | Execute Python in a subprocess (10s timeout) |
@@ -159,6 +160,7 @@ See [`.env.example`](.env.example) for the full list with descriptions. Required
 |----------|-------------|
 | `ANTHROPIC_API_KEY` | Claude API key |
 | `TAVILY_API_KEY` | Tavily search API key |
+| `FIRECRAWL_API_KEY` | Firecrawl page-browsing key (optional — falls back to BS4) |
 | `GITHUB_TOKEN` | Personal access token (repo + pages scopes) |
 | `GITHUB_BLOG_REPO` | Blog repo, e.g. `username/free-agent-blog` |
 | `GITHUB_PAGES_URL` | Blog URL, e.g. `https://username.github.io/free-agent-blog` |
@@ -211,6 +213,7 @@ CREATE TABLE sessions (
 | GitHub Pages | Free |
 | Anthropic API | ~$0.50–2.00/session (Opus) |
 | Tavily | Free tier (1000 searches/mo) |
+| Firecrawl | Free tier (500 pages/mo) |
 | Twitter API | Free tier (500 tweets/mo) |
 | Bluesky | Free |
 

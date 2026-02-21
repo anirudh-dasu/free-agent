@@ -1,43 +1,36 @@
 """
-Headless web browsing via Playwright.
-Returns cleaned plain text of a page.
+Web browsing via Firecrawl API.
+Returns clean markdown of a page.
+Falls back to requests+BeautifulSoup if FIRECRAWL_API_KEY is not set or Firecrawl errors.
 """
 import re
 
 
 def web_browse(url: str) -> str:
     """
-    Fetch a URL with a headless browser and return cleaned text content.
-    Falls back to requests+BeautifulSoup if Playwright is unavailable.
+    Fetch a URL via Firecrawl and return clean markdown content.
+    Falls back to requests+BeautifulSoup if Firecrawl is unavailable.
     """
     try:
-        return _browse_playwright(url)
-    except ImportError:
-        return _browse_requests(url)
+        text = _browse_firecrawl(url)
+    except Exception:
+        text = _browse_requests(url)
+
+    if len(text) > 8000:
+        text = text[:8000] + "\n\n[... page truncated ...]"
+    return text
 
 
-def _browse_playwright(url: str) -> str:
-    from playwright.sync_api import sync_playwright
+def _browse_firecrawl(url: str) -> str:
+    import os
+    from firecrawl import FirecrawlApp
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            args=["--no-sandbox", "--disable-dev-shm-usage"],
-        )
-        page = browser.new_page(
-            user_agent=(
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            )
-        )
-        try:
-            page.goto(url, wait_until="domcontentloaded", timeout=20000)
-            page.wait_for_timeout(1000)  # Let JS settle
-            text = page.inner_text("body")
-        finally:
-            browser.close()
-
-    return _clean_text(text)
+    api_key = os.environ.get("FIRECRAWL_API_KEY", "")
+    if not api_key:
+        raise RuntimeError("FIRECRAWL_API_KEY not set")
+    app = FirecrawlApp(api_key=api_key)
+    result = app.scrape_url(url, formats=["markdown"])
+    return result.markdown or ""
 
 
 def _browse_requests(url: str) -> str:
@@ -86,6 +79,4 @@ from agent.tools.registry import tool  # noqa: E402
 })
 def _handle(inputs: dict, **_) -> tuple[str, bool]:
     text = web_browse(inputs["url"])
-    if len(text) > 8000:
-        text = text[:8000] + "\n\n[... page truncated ...]"
     return text, False
