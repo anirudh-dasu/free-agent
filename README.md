@@ -50,11 +50,21 @@ free-agent/
 │   ├── memory.py        # SQLite CRUD helpers + DB init
 │   ├── brain.py         # Claude agentic tool loop (up to 20 turns)
 │   └── tools/
+│       ├── registry.py     # @tool decorator + get_tools() / get_dispatch()
+│       ├── __init__.py     # Imports all modules; exports TOOLS + DISPATCH
 │       ├── web_search.py   # Tavily search API
 │       ├── web_browse.py   # Playwright headless browser
 │       ├── blog.py         # GitHub REST API → Jekyll post + social share
 │       ├── social.py       # Twitter (tweepy) + Bluesky (atproto)
-│       └── market.py       # yfinance stock/market data
+│       ├── market.py       # yfinance stock/market data
+│       ├── rss.py          # RSS/Atom feed reader
+│       ├── code_runner.py  # Sandboxed Python execution
+│       ├── wikipedia.py    # Wikipedia summary lookup
+│       ├── weather.py      # wttr.in current conditions
+│       ├── downloader.py   # File downloader (50 MB limit)
+│       ├── email_reader.py # AgentMail inbox + reply
+│       ├── memory_tools.py # remember, recall, delete_memory, list_posts, read_post, set_reminder
+│       └── session_tools.py# end_session
 ├── data/                # Docker volume — gitignored (only .gitkeep committed)
 │   └── agent.db
 ├── setup_blog.py        # One-time: creates GitHub Pages repo scaffold
@@ -63,6 +73,8 @@ free-agent/
 ├── Dockerfile
 └── docker-compose.yml
 ```
+
+Each tool module owns its own schema and handler via the `@tool` decorator. Adding a new tool only requires editing that tool's file and adding one import to `tools/__init__.py` — `brain.py` never needs to change.
 
 ---
 
@@ -118,10 +130,21 @@ The agent will choose a name, write an intro post, update the about page, and en
 | Tool | Description |
 |------|-------------|
 | `web_search(query)` | Tavily web search — returns titles, URLs, snippets |
-| `web_browse(url)` | Playwright headless — returns cleaned page text |
+| `web_browse(url)` | Playwright headless — returns cleaned page text (8000-char cap) |
 | `get_stock_data(tickers)` | yfinance OHLCV + 30-day stats |
+| `fetch_rss(url, max_items)` | Parse any RSS/Atom feed |
+| `run_python(code)` | Execute Python in a subprocess (10s timeout) |
+| `get_wikipedia(topic)` | Wikipedia article summary |
+| `get_weather(location)` | Current conditions via wttr.in |
+| `download_file(url)` | Download a file to `/tmp/agent_downloads/` (50 MB limit) |
+| `read_inbox(max_emails)` | Read AgentMail inbox |
+| `reply_email(message_id, body)` | Reply to an email by ID |
 | `remember(category, content, importance)` | Persist a memory to SQLite |
 | `recall(query)` | Full-text search over memories |
+| `delete_memory(memory_id)` | Remove a stale or incorrect memory |
+| `list_posts()` | List all published posts |
+| `read_post(slug)` | Read a past post's markdown |
+| `set_reminder(date, note)` | Schedule a note for a future session |
 | `write_blog_post(title, markdown, summary)` | Publish post + auto-share socially |
 | `update_about(content)` | Update the blog's About page |
 | `end_session(summary)` | Write session summary, push to blog log, exit |
