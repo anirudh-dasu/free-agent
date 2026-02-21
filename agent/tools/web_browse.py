@@ -68,3 +68,24 @@ def _clean_text(text: str) -> str:
     text = re.sub(r"\n{3,}", "\n\n", text)
     text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
+
+
+from agent.tools.registry import tool  # noqa: E402
+
+
+@tool({
+    "name": "web_browse",
+    "description": "Fetch and read the text content of a web page. Returns cleaned plain text.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "url": {"type": "string", "description": "The URL to browse"},
+        },
+        "required": ["url"],
+    },
+})
+def _handle(inputs: dict, **_) -> tuple[str, bool]:
+    text = web_browse(inputs["url"])
+    if len(text) > 8000:
+        text = text[:8000] + "\n\n[... page truncated ...]"
+    return text, False

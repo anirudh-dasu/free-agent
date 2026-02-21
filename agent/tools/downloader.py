@@ -42,3 +42,25 @@ def download_file(url: str) -> str:
             f.write(chunk)
 
     return local_path
+
+
+from agent.tools.registry import tool  # noqa: E402
+
+
+@tool({
+    "name": "download_file",
+    "description": (
+        "Download a file from a URL to /tmp/agent_downloads/. "
+        "Returns the local file path. Use run_python to process the file afterward. "
+        "50 MB size limit."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "url": {"type": "string", "description": "The URL of the file to download"},
+        },
+        "required": ["url"],
+    },
+})
+def _handle(inputs: dict, **_) -> tuple[str, bool]:
+    return f"File downloaded to: {download_file(inputs['url'])}", False

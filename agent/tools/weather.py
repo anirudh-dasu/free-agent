@@ -32,3 +32,22 @@ def get_weather(location: str) -> dict:
         "humidity": int(current.get("humidity", 0)),
         "wind_kph": int(current.get("windspeedKmph", 0)),
     }
+
+
+import json  # noqa: E402
+from agent.tools.registry import tool  # noqa: E402
+
+
+@tool({
+    "name": "get_weather",
+    "description": "Get current weather conditions for any location. No API key needed.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "location": {"type": "string", "description": "City name or location (e.g. 'London', 'New York')"},
+        },
+        "required": ["location"],
+    },
+})
+def _handle(inputs: dict, **_) -> tuple[str, bool]:
+    return json.dumps(get_weather(inputs["location"]), indent=2), False

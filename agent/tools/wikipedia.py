@@ -46,3 +46,22 @@ def get_wikipedia(topic: str) -> dict:
 
     resp.raise_for_status()
     return {"error": f"Unexpected status {resp.status_code}"}
+
+
+import json  # noqa: E402
+from agent.tools.registry import tool  # noqa: E402
+
+
+@tool({
+    "name": "get_wikipedia",
+    "description": "Look up a Wikipedia article summary for a topic. Returns the title, extract, and URL.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "topic": {"type": "string", "description": "The topic or article title to look up"},
+        },
+        "required": ["topic"],
+    },
+})
+def _handle(inputs: dict, **_) -> tuple[str, bool]:
+    return json.dumps(get_wikipedia(inputs["topic"]), indent=2), False

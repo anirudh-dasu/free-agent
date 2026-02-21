@@ -35,3 +35,31 @@ def _truncate(text: str, limit: int) -> str:
     text = re.sub(r"<[^>]+>", "", text)
     text = text.strip()
     return text[:limit] + ("..." if len(text) > limit else "")
+
+
+import json  # noqa: E402
+from agent.tools.registry import tool  # noqa: E402
+
+
+@tool({
+    "name": "fetch_rss",
+    "description": (
+        "Fetch and parse an RSS or Atom feed. "
+        "Use this to read news sites, HN, arXiv, blogs, or any feed URL. "
+        "Returns titles, links, summaries, and publish dates."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "url": {"type": "string", "description": "The RSS/Atom feed URL"},
+            "max_items": {
+                "type": "integer",
+                "description": "Max number of items to return (default 10)",
+                "default": 10,
+            },
+        },
+        "required": ["url"],
+    },
+})
+def _handle(inputs: dict, **_) -> tuple[str, bool]:
+    return json.dumps(fetch_rss(inputs["url"], inputs.get("max_items", 10)), indent=2), False

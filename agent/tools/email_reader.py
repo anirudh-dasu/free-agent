@@ -72,3 +72,41 @@ def reply_email(message_id: str, body: str) -> str:
     client.inboxes.messages.reply(AGENTMAIL_INBOX_ID, message_id, text=body)
     mem.mark_email_replied(message_id, body)
     return f"Reply sent to message {message_id}."
+
+
+import json  # noqa: E402
+from agent.tools.registry import tool  # noqa: E402
+
+
+@tool({
+    "name": "read_inbox",
+    "description": "Read recent emails from your AgentMail inbox. Returns a list of messages with sender, subject, and body.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "max_emails": {
+                "type": "integer",
+                "description": "Maximum number of emails to return (default 10)",
+                "default": 10,
+            },
+        },
+    },
+})
+def _handle_read(inputs: dict, **_) -> tuple[str, bool]:
+    return json.dumps(read_inbox(inputs.get("max_emails", 10)), indent=2), False
+
+
+@tool({
+    "name": "reply_email",
+    "description": "Reply to an email by its message_id (from read_inbox). You can only reply, not send to arbitrary addresses.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "message_id": {"type": "string", "description": "The message_id from read_inbox"},
+            "body": {"type": "string", "description": "Your reply text"},
+        },
+        "required": ["message_id", "body"],
+    },
+})
+def _handle_reply(inputs: dict, **_) -> tuple[str, bool]:
+    return reply_email(inputs["message_id"], inputs["body"]), False

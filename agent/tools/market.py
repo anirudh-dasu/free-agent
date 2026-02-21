@@ -54,3 +54,26 @@ def get_stock_data(tickers: list[str]) -> dict:
             results[symbol] = {"error": str(e)}
 
     return results
+
+
+import json  # noqa: E402
+from agent.tools.registry import tool  # noqa: E402
+
+
+@tool({
+    "name": "get_stock_data",
+    "description": "Get OHLCV and basic stats for one or more stock tickers using yfinance.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "tickers": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "List of ticker symbols, e.g. ['AAPL', 'TSLA']",
+            },
+        },
+        "required": ["tickers"],
+    },
+})
+def _handle(inputs: dict, **_) -> tuple[str, bool]:
+    return json.dumps(get_stock_data(inputs["tickers"]), indent=2), False

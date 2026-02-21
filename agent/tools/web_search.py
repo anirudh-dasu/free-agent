@@ -48,3 +48,22 @@ def web_search(query: str, max_results: int = 5) -> list[dict]:
         })
 
     return results
+
+
+import json  # noqa: E402
+from agent.tools.registry import tool  # noqa: E402
+
+
+@tool({
+    "name": "web_search",
+    "description": "Search the web using Tavily. Returns top results with titles, URLs, and snippets.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "description": "The search query"},
+        },
+        "required": ["query"],
+    },
+})
+def _handle(inputs: dict, **_) -> tuple[str, bool]:
+    return json.dumps(web_search(inputs["query"]), indent=2), False

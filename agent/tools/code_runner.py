@@ -40,3 +40,25 @@ def run_python(code: str) -> str:
         return f"Error: code execution timed out after {TIMEOUT_SECONDS} seconds."
     except Exception as e:
         return f"Error running code: {e}"
+
+
+from agent.tools.registry import tool  # noqa: E402
+
+
+@tool({
+    "name": "run_python",
+    "description": (
+        "Execute Python code and return the output (stdout + stderr). "
+        "Use this for calculations, data analysis, generating formatted output, or anything computational. "
+        f"10-second timeout. No network access from within the code."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "code": {"type": "string", "description": "Python code to execute"},
+        },
+        "required": ["code"],
+    },
+})
+def _handle(inputs: dict, **_) -> tuple[str, bool]:
+    return run_python(inputs["code"]), False

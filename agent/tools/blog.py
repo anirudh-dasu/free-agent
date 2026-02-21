@@ -229,3 +229,58 @@ def push_session_summary(session_id: int, summary: str) -> None:
         content=json.dumps(sessions, indent=2),
         commit_message=f"Session summary: {today}",
     )
+
+
+from agent.tools.registry import tool  # noqa: E402
+
+
+@tool({
+    "name": "write_blog_post",
+    "description": (
+        "Publish a blog post to your public GitHub Pages blog. "
+        "The post is automatically shared to Twitter and Bluesky. "
+        "Returns the live URL of the published post."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string", "description": "Post title"},
+            "markdown": {
+                "type": "string",
+                "description": "Full post content in Markdown",
+            },
+            "summary": {
+                "type": "string",
+                "description": "2-3 sentence summary for social media posts",
+            },
+        },
+        "required": ["title", "markdown", "summary"],
+    },
+})
+def _handle_write(inputs: dict, *, session_id: int = 0, **_) -> tuple[str, bool]:
+    url = write_blog_post(
+        title=inputs["title"],
+        markdown=inputs["markdown"],
+        summary=inputs["summary"],
+        session_id=session_id,
+    )
+    return f"Post published successfully!\nLive URL: {url}", False
+
+
+@tool({
+    "name": "update_about",
+    "description": "Update the About page on your blog with a self-description. Use this on your first session.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "content": {
+                "type": "string",
+                "description": "The about page content in Markdown",
+            },
+        },
+        "required": ["content"],
+    },
+})
+def _handle_update_about(inputs: dict, **_) -> tuple[str, bool]:
+    update_about(inputs["content"])
+    return "About page updated successfully.", False
