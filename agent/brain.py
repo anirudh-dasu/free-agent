@@ -15,6 +15,10 @@ from agent.tools.blog import write_blog_post, update_about, push_session_summary
 from agent.tools.social import post_to_twitter, post_to_bluesky
 from agent.tools.code_runner import run_python
 from agent.tools.rss import fetch_rss
+from agent.tools.wikipedia import get_wikipedia
+from agent.tools.weather import get_weather
+from agent.tools.downloader import download_file
+from agent.tools.email_reader import read_inbox, reply_email
 
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-6")
 MAX_TURNS = int(os.environ.get("MAX_TURNS", "20"))
@@ -194,6 +198,81 @@ TOOLS: list[dict] = [
         },
     },
     {
+        "name": "get_wikipedia",
+        "description": "Look up a Wikipedia article summary for a topic. Returns the title, extract, and URL.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "topic": {"type": "string", "description": "The topic or article title to look up"}
+            },
+            "required": ["topic"],
+        },
+    },
+    {
+        "name": "get_weather",
+        "description": "Get current weather conditions for any location. No API key needed.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "location": {"type": "string", "description": "City name or location (e.g. 'London', 'New York')"}
+            },
+            "required": ["location"],
+        },
+    },
+    {
+        "name": "download_file",
+        "description": (
+            "Download a file from a URL to /tmp/agent_downloads/. "
+            "Returns the local file path. Use run_python to process the file afterward. "
+            "50 MB size limit."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "The URL of the file to download"}
+            },
+            "required": ["url"],
+        },
+    },
+    {
+        "name": "set_reminder",
+        "description": "Set a reminder note for a future date. The reminder will be injected into your system prompt on or after the due date.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "date": {"type": "string", "description": "Due date in YYYY-MM-DD format"},
+                "note": {"type": "string", "description": "What to remind yourself about"},
+            },
+            "required": ["date", "note"],
+        },
+    },
+    {
+        "name": "read_inbox",
+        "description": "Read recent emails from your AgentMail inbox. Returns a list of messages with sender, subject, and body.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "max_emails": {
+                    "type": "integer",
+                    "description": "Maximum number of emails to return (default 10)",
+                    "default": 10,
+                }
+            },
+        },
+    },
+    {
+        "name": "reply_email",
+        "description": "Reply to an email by its message_id (from read_inbox). You can only reply, not send to arbitrary addresses.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "message_id": {"type": "string", "description": "The message_id from read_inbox"},
+                "body": {"type": "string", "description": "Your reply text"},
+            },
+            "required": ["message_id", "body"],
+        },
+    },
+    {
         "name": "end_session",
         "description": "End today's session. Write a summary of what you did and learned. This exits the loop.",
         "input_schema": {
@@ -291,6 +370,30 @@ def dispatch_tool(
             if deleted:
                 return f"Memory {inputs['memory_id']} deleted.", False
             return f"No memory found with id {inputs['memory_id']}.", False
+
+        elif name == "get_wikipedia":
+            result = get_wikipedia(inputs["topic"])
+            return json.dumps(result, indent=2), False
+
+        elif name == "get_weather":
+            result = get_weather(inputs["location"])
+            return json.dumps(result, indent=2), False
+
+        elif name == "download_file":
+            path = download_file(inputs["url"])
+            return f"File downloaded to: {path}", False
+
+        elif name == "set_reminder":
+            rid = mem.set_reminder(inputs["date"], inputs["note"])
+            return f"Reminder set (id={rid}) for {inputs['date']}: {inputs['note']}", False
+
+        elif name == "read_inbox":
+            messages = read_inbox(inputs.get("max_emails", 10))
+            return json.dumps(messages, indent=2), False
+
+        elif name == "reply_email":
+            result = reply_email(inputs["message_id"], inputs["body"])
+            return result, False
 
         elif name == "end_session":
             mem.end_session(session_id, inputs["summary"], actions)

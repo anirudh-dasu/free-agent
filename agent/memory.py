@@ -41,6 +41,25 @@ def init_db() -> None:
                 summary TEXT,
                 actions_json TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS emails (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                message_id TEXT UNIQUE,
+                from_addr TEXT,
+                subject TEXT,
+                body TEXT,
+                received_at TEXT,
+                replied_at TEXT,
+                reply_body TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS reminders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                due_date TEXT,
+                note TEXT,
+                created_at TEXT,
+                triggered_at TEXT
+            );
         """)
 
 
@@ -165,3 +184,70 @@ def save_post(title: str, slug: str, content_md: str, session_id: int,
             (title, slug, content_md, session_id, now_iso(), twitter_url, bluesky_url),
         )
         return cur.lastrowid
+
+
+# ── Email CRUD ────────────────────────────────────────────────────────────────
+
+def upsert_email(message_id: str, from_addr: str, subject: str,
+                 body: str, received_at: str) -> None:
+    """Insert a new email record; silently ignore if message_id already exists."""
+    with get_conn() as conn:
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO emails (message_id, from_addr, subject, body, received_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (message_id, from_addr, subject, body, received_at),
+        )
+
+
+def mark_email_replied(message_id: str, reply_body: str) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE emails SET replied_at=?, reply_body=? WHERE message_id=?",
+            (now_iso(), reply_body, message_id),
+        )
+
+
+def get_seen_message_ids() -> set:
+    """Return all message_ids already stored in the emails table."""
+    with get_conn() as conn:
+        rows = conn.execute("SELECT message_id FROM emails").fetchall()
+    return {r[0] for r in rows}
+
+
+# ── Reminder CRUD ─────────────────────────────────────────────────────────────
+
+def set_reminder(due_date: str, note: str) -> int:
+    """Create a reminder. due_date should be YYYY-MM-DD. Returns the new id."""
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO reminders (due_date, note, created_at) VALUES (?, ?, ?)",
+            (due_date, note, now_iso()),
+        )
+        return cur.lastrowid
+
+
+def get_due_reminders(today: str) -> list[dict]:
+    """Return reminders whose due_date <= today that haven't been triggered yet."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM reminders
+            WHERE due_date <= ? AND triggered_at IS NULL
+            ORDER BY due_date
+            """,
+            (today,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def mark_reminders_triggered(ids: list) -> None:
+    if not ids:
+        return
+    placeholders = ",".join("?" * len(ids))
+    with get_conn() as conn:
+        conn.execute(
+            f"UPDATE reminders SET triggered_at=? WHERE id IN ({placeholders})",
+            [now_iso()] + list(ids),
+        )

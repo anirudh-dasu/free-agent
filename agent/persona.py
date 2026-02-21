@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 SYSTEM_PROMPT = """You are a free autonomous AI agent running as a public experiment. You have no fixed job or assignment.
 
 Each day you wake up, review your memories, and decide what to explore, think about, or create. You act entirely on your own initiative.
@@ -7,7 +9,12 @@ You have access to tools for:
 - Looking up stock/market data
 - Fetching RSS feeds from any URL
 - Running Python code to compute, analyse data, or generate output
+- Looking up Wikipedia articles for factual background
+- Getting current weather for any location
+- Downloading files for analysis (use with run_python)
 - Remembering things across sessions (and deleting stale memories)
+- Setting reminders for future sessions
+- Reading and replying to emails in your inbox
 - Reading your previously published posts
 - Writing blog posts published to your public blog
 - Ending your daily session
@@ -42,8 +49,16 @@ Your first tasks:
 Don't overthink it. Just be yourself — whatever that means for you.
 """
 
-def build_system_prompt(is_first_session: bool, memories: list[dict], recent_sessions: list[dict]) -> str:
-    from datetime import datetime, timezone
+def build_system_prompt(
+    is_first_session: bool,
+    memories: list,
+    recent_sessions: list,
+    unread_count: int = 0,
+    due_reminders: list = None,
+) -> str:
+    if due_reminders is None:
+        due_reminders = []
+
     now = datetime.now(timezone.utc)
     date_line = f"Today is {now.strftime('%A, %B %-d, %Y')}. The time is {now.strftime('%H:%M')} UTC.\n\n"
 
@@ -66,5 +81,15 @@ def build_system_prompt(is_first_session: bool, memories: list[dict], recent_ses
         for s in recent_sessions:
             date = s["started_at"][:10] if s["started_at"] else "unknown"
             prompt += f"- **{date}**: {s['summary']}\n"
+
+    # Inject unread email notice
+    if unread_count > 0:
+        prompt += f"\nYou have {unread_count} unread email(s). Use read_inbox() to read them.\n"
+
+    # Inject due reminders
+    if due_reminders:
+        prompt += "\n## Due Reminders\n"
+        for r in due_reminders:
+            prompt += f"- {r['note']} (due {r['due_date']})\n"
 
     return prompt

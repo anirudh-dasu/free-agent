@@ -6,6 +6,7 @@ then hands off to the agentic brain.
 """
 import os
 import sys
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 # Load .env before any other imports that might read env vars
@@ -42,11 +43,30 @@ def main() -> None:
     else:
         print(f"[main] Loaded {len(memories)} memories, {len(recent_sessions)} recent sessions.")
 
+    # ── Email unread count ───────────────────────────────────────────────────
+    unread_count = 0
+    try:
+        from agent.tools.email_reader import get_unread_count
+        unread_count = get_unread_count()
+        if unread_count:
+            print(f"[main] {unread_count} unread email(s).")
+    except Exception as e:
+        print(f"[main] Could not check email: {e}")
+
+    # ── Due reminders ────────────────────────────────────────────────────────
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    due_reminders = mem.get_due_reminders(today)
+    if due_reminders:
+        mem.mark_reminders_triggered([r["id"] for r in due_reminders])
+        print(f"[main] {len(due_reminders)} reminder(s) due today.")
+
     # ── Build system prompt ──────────────────────────────────────────────────
     system_prompt = build_system_prompt(
         is_first_session=first_session,
         memories=memories,
         recent_sessions=recent_sessions,
+        unread_count=unread_count,
+        due_reminders=due_reminders,
     )
 
     # ── Start session record ─────────────────────────────────────────────────
