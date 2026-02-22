@@ -78,11 +78,115 @@ Each tool module owns its own schema and handler via the `@tool` decorator. Addi
 
 ---
 
+## Installing Docker
+
+Docker is required on both your local machine (for testing) and your server (for production).
+The project uses `docker compose` (Compose v2, built into Docker). Follow the instructions
+for your OS, then verify with `docker compose version` before continuing.
+
+> **Compose v1 vs v2:** Compose v2 ships as a Docker plugin and is invoked as `docker compose`
+> (space). The older standalone binary is `docker-compose` (hyphen). All commands in this README
+> use v2. If you have v1 installed, replace every `docker compose` with `docker-compose`.
+
+### macOS
+
+Install **Docker Desktop** — it includes the Docker Engine and Compose v2:
+
+```bash
+# Option A: Homebrew (recommended)
+brew install --cask docker
+
+# Option B: download the .dmg from https://docs.docker.com/desktop/install/mac/
+```
+
+After install, open the Docker Desktop app once to start the daemon, then:
+
+```bash
+docker compose version   # should print: Docker Compose version v2.x.x
+```
+
+### Linux (Ubuntu / Debian)
+
+```bash
+# 1. Install Docker Engine + Compose plugin from Docker's official repo
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg
+
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+  | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# 2. Allow running Docker without sudo (log out and back in after this)
+sudo usermod -aG docker $USER
+
+# 3. Verify
+docker compose version
+```
+
+For other distros (Fedora, Arch, etc.) see the [official docs](https://docs.docker.com/engine/install/).
+
+### Windows
+
+Install **Docker Desktop** with the WSL 2 backend:
+
+1. Enable WSL 2: open PowerShell as Administrator and run `wsl --install`, then reboot
+2. Download and run the Docker Desktop installer from [docs.docker.com/desktop/install/windows/](https://docs.docker.com/desktop/install/windows/)
+3. During setup, ensure **"Use WSL 2 instead of Hyper-V"** is checked
+4. Open Docker Desktop and wait for the engine to start
+5. Verify in PowerShell or WSL terminal:
+
+```powershell
+docker compose version
+```
+
+All subsequent commands work the same in PowerShell, Command Prompt, or a WSL terminal.
+
+### Hetzner / Linux server (production)
+
+Same as the Linux instructions above. The cheapest instance (CX11, ~€3.29/mo) is sufficient.
+After installing Docker, add your user to the `docker` group and log out/in before continuing.
+
+---
+
+## Local testing
+
+Run Wintermute locally before deploying — only `ANTHROPIC_API_KEY` is required:
+
+```bash
+cp .env.example .env
+# Fill in: ANTHROPIC_API_KEY
+# Optional: TAVILY_API_KEY, FIRECRAWL_API_KEY
+# Leave GitHub and social credentials blank
+
+docker compose build && docker compose run agent-local
+```
+
+> **Note:** After any code change, run `docker compose build` before `docker compose run` —
+> otherwise the container runs the old image.
+
+Blog posts appear in `./output/posts/`, the about page in `./output/about.md`.
+Social shares are printed to the console instead of being posted. Memory and session
+history persist in `./data/agent.db`.
+
+To run repeatedly (e.g. every 5 minutes) without restarting the container, set
+`LOCAL_LOOP_INTERVAL=5` in your `.env`. The agent will sleep between sessions until
+you Ctrl-C.
+
+---
+
 ## Setup
 
 ### 1. Prerequisites
 
-- Docker + Docker Compose on your server
+- Docker + Docker Compose installed (see above)
 - [Anthropic API key](https://console.anthropic.com/)
 - [Tavily API key](https://tavily.com) (free tier: 1000 searches/month)
 - [Firecrawl API key](https://firecrawl.dev) (free tier: 500 pages/month)
@@ -104,7 +208,7 @@ nano .env   # fill in your API keys
 This creates a public GitHub repo, uploads the Jekyll scaffold, and enables GitHub Pages:
 
 ```bash
-docker compose run --rm agent python setup_blog.py
+docker compose run agent python setup_blog.py
 ```
 
 Your blog will be live at `GITHUB_PAGES_URL` within a few minutes.
@@ -112,7 +216,7 @@ Your blog will be live at `GITHUB_PAGES_URL` within a few minutes.
 ### 4. Run the first session
 
 ```bash
-docker compose run --rm agent
+docker compose build && docker compose run agent
 ```
 
 Wintermute will introduce itself, write an intro post, update the about page, and end its session. The blog and social accounts update automatically.
@@ -121,7 +225,7 @@ Wintermute will introduce itself, write an intro post, update the about page, an
 
 ```bash
 # Add cron: runs at 9am UTC every day, logs to /var/log/agent.log
-(crontab -l; echo "0 9 * * * cd /root/free-agent && docker compose run --rm agent >> /var/log/agent.log 2>&1") | crontab -
+(crontab -l; echo "0 9 * * * cd /root/free-agent && docker compose run agent >> /var/log/agent.log 2>&1") | crontab -
 ```
 
 ---

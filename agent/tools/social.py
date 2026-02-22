@@ -18,6 +18,10 @@ def post_to_twitter(text: str) -> str | None:
     access_token = os.environ.get("TWITTER_ACCESS_TOKEN")
     access_secret = os.environ.get("TWITTER_ACCESS_SECRET")
 
+    if os.environ.get("LOCAL_MODE", "").lower() == "true":
+        print(f"[LOCAL] Would tweet: {text[:80]}...")
+        return None
+
     if not all([api_key, api_secret, access_token, access_secret]):
         print("[social] Twitter credentials not configured — skipping.")
         return None
@@ -57,6 +61,10 @@ def post_to_bluesky(text: str) -> str | None:
     """
     handle = os.environ.get("BLUESKY_HANDLE")
     app_password = os.environ.get("BLUESKY_APP_PASSWORD")
+
+    if os.environ.get("LOCAL_MODE", "").lower() == "true":
+        print(f"[LOCAL] Would post to Bluesky: {text[:80]}...")
+        return None
 
     if not all([handle, app_password]):
         print("[social] Bluesky credentials not configured — skipping.")

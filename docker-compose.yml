@@ -6,3 +6,13 @@ services:
       # Persistent SQLite database
       - ./data:/app/data
     restart: "no"   # Runs once and exits — cron handles scheduling
+
+  agent-local:
+    build: .
+    env_file: .env
+    environment:
+      LOCAL_MODE: "true"
+    volumes:
+      - ./data:/app/data      # same DB as prod
+      - ./output:/app/output  # local post output
+    restart: "no"

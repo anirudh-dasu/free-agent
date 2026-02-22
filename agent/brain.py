@@ -43,7 +43,11 @@ def run_session(system_prompt: str, session_id: int) -> str:
     """
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
-    messages: list[dict] = []
+    from datetime import datetime, timezone
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    messages: list[dict] = [
+        {"role": "user", "content": f"Today is {today}. Begin your session."},
+    ]
     actions: list[dict] = []
     session_summary = "Session ended without summary."
 

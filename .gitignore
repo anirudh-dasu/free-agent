@@ -5,6 +5,9 @@
 data/*
 !data/.gitkeep
 
+# Local test output
+output/
+
 # Claude Code local settings
 .claude/
 

@@ -6,6 +6,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import pathlib
 import re
 from datetime import datetime, timezone
 
@@ -13,6 +14,10 @@ import requests
 
 from agent.tools.social import share_post
 from agent import memory as mem
+
+
+def _is_local() -> bool:
+    return os.environ.get("LOCAL_MODE", "").lower() == "true"
 
 
 def _github_headers() -> dict:
@@ -97,11 +102,19 @@ def write_blog_post(
 
     filename = f"_posts/{date_str}-{slug}.md"
     front_matter = _build_jekyll_front_matter(title, datetime_str, slug)
-    full_content = front_matter + "\n" + markdown
+    jekyll_content = front_matter + "\n" + markdown
+
+    if _is_local():
+        out_dir = pathlib.Path("output/posts")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / f"{date_str}-{slug}.md").write_text(jekyll_content)
+        mem.save_post(title, slug, markdown, session_id, twitter_url=None, bluesky_url=None)
+        _append_session_log(session_id, title, f"[local] output/posts/{date_str}-{slug}.md")
+        return f"[LOCAL] Post written to output/posts/{date_str}-{slug}.md"
 
     _put_file(
         path=filename,
-        content=full_content,
+        content=jekyll_content,
         commit_message=f"Post: {title}",
     )
 
@@ -126,8 +139,13 @@ def write_blog_post(
     return post_url
 
 
-def update_about(content: str) -> None:
+def update_about(content: str) -> str:
     """Update the about.html (or about.md) page with agent self-description."""
+    if _is_local():
+        pathlib.Path("output").mkdir(exist_ok=True)
+        pathlib.Path("output/about.md").write_text(content)
+        return "[LOCAL] About page written to output/about.md"
+
     full_content = f"""---
 layout: default
 title: About
@@ -141,6 +159,7 @@ permalink: /about/
         content=full_content,
         commit_message="Update about page",
     )
+    return "About page updated successfully."
 
 
 def _append_session_log(session_id: int, post_title: str | None = None, post_url: str | None = None) -> None:
@@ -148,6 +167,27 @@ def _append_session_log(session_id: int, post_title: str | None = None, post_url
     Update _data/sessions.json on the blog with today's session entry.
     Called from write_blog_post and also exported for end_session use.
     """
+    if _is_local():
+        pathlib.Path("output").mkdir(exist_ok=True)
+        p = pathlib.Path("output/sessions.json")
+        sessions = json.loads(p.read_text()) if p.exists() else []
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        entry: dict = {"date": today, "session_id": session_id}
+        if post_title:
+            entry["post_title"] = post_title
+        if post_url:
+            entry["post_url"] = post_url
+        updated = False
+        for s in sessions:
+            if s.get("date") == today:
+                s.update(entry)
+                updated = True
+                break
+        if not updated:
+            sessions.append(entry)
+        p.write_text(json.dumps(sessions[-90:], indent=2))
+        return
+
     path = "_data/sessions.json"
 
     # Fetch existing data
@@ -194,6 +234,18 @@ def _append_session_log(session_id: int, post_title: str | None = None, post_url
 
 def push_session_summary(session_id: int, summary: str) -> None:
     """Push end-of-session summary to the blog's sessions.json."""
+    if _is_local():
+        pathlib.Path("output").mkdir(exist_ok=True)
+        p = pathlib.Path("output/sessions.json")
+        sessions = json.loads(p.read_text()) if p.exists() else []
+        sessions.append({
+            "session_id": session_id,
+            "summary": summary,
+            "date": datetime.now(timezone.utc).isoformat(),
+        })
+        p.write_text(json.dumps(sessions, indent=2))
+        return
+
     path = "_data/sessions.json"
 
     url = f"https://api.github.com/repos/{_repo()}/contents/{path}"
@@ -258,13 +310,15 @@ from agent.tools.registry import tool  # noqa: E402
     },
 })
 def _handle_write(inputs: dict, *, session_id: int = 0, **_) -> tuple[str, bool]:
-    url = write_blog_post(
+    result = write_blog_post(
         title=inputs["title"],
         markdown=inputs["markdown"],
         summary=inputs["summary"],
         session_id=session_id,
     )
-    return f"Post published successfully!\nLive URL: {url}", False
+    if _is_local():
+        return result, False
+    return f"Post published successfully!\nLive URL: {result}", False
 
 
 @tool({
@@ -282,5 +336,5 @@ def _handle_write(inputs: dict, *, session_id: int = 0, **_) -> tuple[str, bool]
     },
 })
 def _handle_update_about(inputs: dict, **_) -> tuple[str, bool]:
-    update_about(inputs["content"])
-    return "About page updated successfully.", False
+    result = update_about(inputs["content"])
+    return result, False
