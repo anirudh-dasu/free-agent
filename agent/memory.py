@@ -3,7 +3,25 @@ import json
 import os
 from datetime import datetime, timezone
 
+import chromadb
+from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+
 DB_PATH = os.environ.get("DB_PATH", "/app/data/agent.db")
+CHROMA_PATH = os.environ.get("CHROMA_PATH", "/app/data/chroma")
+
+_chroma_client = None
+_chroma_col = None
+
+
+def _get_chroma_col():
+    global _chroma_client, _chroma_col
+    if _chroma_col is None:
+        _chroma_client = chromadb.PersistentClient(path=CHROMA_PATH)
+        ef = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+        _chroma_col = _chroma_client.get_or_create_collection(
+            name="memories", embedding_function=ef
+        )
+    return _chroma_col
 
 
 def get_conn() -> sqlite3.Connection:
@@ -62,6 +80,18 @@ def init_db() -> None:
             );
         """)
 
+    # Initialize ChromaDB and sync any existing SQLite memories not yet indexed
+    col = _get_chroma_col()
+    existing_ids = set(col.get()["ids"])
+    rows = get_all_memories(limit=1000)
+    to_add = [r for r in rows if str(r["id"]) not in existing_ids]
+    if to_add:
+        col.add(
+            ids=[str(r["id"]) for r in to_add],
+            documents=[r["content"] for r in to_add],
+            metadatas=[{"category": r["category"], "importance": r["importance"]} for r in to_add],
+        )
+
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -110,22 +140,33 @@ def remember(category: str, content: str, importance: int) -> int:
             "INSERT INTO memories (category, content, importance, created_at) VALUES (?, ?, ?, ?)",
             (category, content, importance, now_iso()),
         )
-        return cur.lastrowid
+        mid = cur.lastrowid
+    _get_chroma_col().add(
+        ids=[str(mid)],
+        documents=[content],
+        metadatas=[{"category": category, "importance": importance}],
+    )
+    return mid
 
 
 def recall(query: str, limit: int = 20) -> list[dict]:
-    """Simple full-text search over memory content."""
-    with get_conn() as conn:
-        rows = conn.execute(
-            """
-            SELECT * FROM memories
-            WHERE content LIKE ? OR category LIKE ?
-            ORDER BY importance DESC, id DESC
-            LIMIT ?
-            """,
-            (f"%{query}%", f"%{query}%", limit),
-        ).fetchall()
-    return [dict(r) for r in rows]
+    """Semantic search over memories using ChromaDB embeddings."""
+    col = _get_chroma_col()
+    if col.count() == 0:
+        return []
+    results = col.query(query_texts=[query], n_results=min(limit, col.count()))
+    ids   = results["ids"][0]
+    metas = results["metadatas"][0]
+    docs  = results["documents"][0]
+    return [
+        {
+            "id":         int(ids[i]),
+            "category":   metas[i]["category"],
+            "content":    docs[i],
+            "importance": metas[i]["importance"],
+        }
+        for i in range(len(ids))
+    ]
 
 
 def get_all_memories(limit: int = 50) -> list[dict]:
@@ -144,7 +185,13 @@ def delete_memory(memory_id: int) -> bool:
     """Delete a memory by ID. Returns True if a row was deleted."""
     with get_conn() as conn:
         cur = conn.execute("DELETE FROM memories WHERE id=?", (memory_id,))
-        return cur.rowcount > 0
+        deleted = cur.rowcount > 0
+    if deleted:
+        try:
+            _get_chroma_col().delete(ids=[str(memory_id)])
+        except Exception:
+            pass  # ChromaDB delete is best-effort; SQLite is source of truth
+    return deleted
 
 
 # ── Post CRUD ─────────────────────────────────────────────────────────────────

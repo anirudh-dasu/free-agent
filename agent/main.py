@@ -81,11 +81,15 @@ def _run_one_session() -> None:
         mem.mark_reminders_triggered([r["id"] for r in due_reminders])
         print(f"[main] {len(due_reminders)} reminder(s) due today.")
 
+    # ── Recent posts (for topic diversity tracking) ──────────────────────────
+    recent_posts = [] if first_session else mem.list_posts(limit=10)
+
     # ── Build system prompt ──────────────────────────────────────────────────
     system_prompt = build_system_prompt(
         is_first_session=first_session,
         memories=memories,
         recent_sessions=recent_sessions,
+        recent_posts=recent_posts,
         unread_count=unread_count,
         due_reminders=due_reminders,
     )

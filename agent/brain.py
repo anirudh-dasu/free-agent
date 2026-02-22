@@ -3,6 +3,7 @@ Agentic tool loop — drives the daily session.
 """
 import json
 import os
+import time
 
 import anthropic
 
@@ -11,6 +12,27 @@ from agent.tools import TOOLS, DISPATCH
 
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-6")
 MAX_TURNS = int(os.environ.get("MAX_TURNS", "20"))
+
+_RETRY_DELAYS = [5, 15, 45]  # seconds between attempts
+
+
+def _create_with_retry(client: anthropic.Anthropic, **kwargs):
+    """Call client.messages.create with retries on transient 500/529 errors."""
+    last_exc = None
+    for attempt, delay in enumerate([0] + _RETRY_DELAYS):
+        if delay:
+            print(f"[brain] API error — retrying in {delay}s (attempt {attempt + 1}/{len(_RETRY_DELAYS) + 1})")
+            time.sleep(delay)
+        try:
+            return client.messages.create(**kwargs)
+        except anthropic.InternalServerError as e:
+            last_exc = e
+        except anthropic.APIStatusError as e:
+            if e.status_code == 529:  # overloaded
+                last_exc = e
+            else:
+                raise
+    raise last_exc
 
 
 # ── Tool dispatcher ────────────────────────────────────────────────────────────
@@ -56,7 +78,8 @@ def run_session(system_prompt: str, session_id: int) -> str:
     for turn in range(MAX_TURNS):
         print(f"[brain] Turn {turn + 1}/{MAX_TURNS}")
 
-        response = client.messages.create(
+        response = _create_with_retry(
+            client,
             model=MODEL,
             max_tokens=4096,
             system=system_prompt,
